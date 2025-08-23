@@ -104,4 +104,4 @@ MonoBehaviour:
     Gold: 0
     Wood: 0
     Influence: 0
-  type: {fileID: 0}
+  type: {fileID: 11400000, guid: bbae8974580206440b0316a915356232, type: 2}
