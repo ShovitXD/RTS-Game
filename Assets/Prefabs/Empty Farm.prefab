@@ -12,6 +12,7 @@ GameObject:
   - component: {fileID: 5213758373177636058}
   - component: {fileID: 429108844447829761}
   - component: {fileID: -1873855734355102166}
+  - component: {fileID: 5766837223505135318}
   m_Layer: 0
   m_Name: Empty Farm
   m_TagString: Untagged
@@ -105,3 +106,21 @@ MonoBehaviour:
     Wood: 0
     Influence: 0
   type: {fileID: 0}
+  x: -1
+  z: -1
+--- !u!114 &5766837223505135318
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1860601089268871943}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ee30ff1eaea1a014caf404dd2b69b6f5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  cell: {fileID: 0}
+  grid: {fileID: 0}
+  borderPolePrefab: {fileID: 0}
+  inwardOffset: 0.05

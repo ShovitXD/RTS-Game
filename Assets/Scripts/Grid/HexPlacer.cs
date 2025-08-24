@@ -2,8 +2,22 @@
 using UnityEngine;
 using UnityEngine.EventSystems;
 
-[System.Serializable] public class MapCell { public int x, z, index; }
-[System.Serializable] public class MapSnapshot { public int width, height; public List<MapCell> cells = new(); }
+[System.Serializable]
+public class MapCell
+{
+    public int x;
+    public int z;
+    public int index;     // TileType index
+    public int owner = -1; // NEW: kingdom owner; -1 means "not present in old saves"
+}
+
+[System.Serializable]
+public class MapSnapshot
+{
+    public int width;
+    public int height;
+    public List<MapCell> cells = new();
+}
 
 public class HexPlacer : MonoBehaviour
 {
@@ -20,21 +34,29 @@ public class HexPlacer : MonoBehaviour
     [SerializeField] private KingdomSelector kingdomSelector;
 
     [Header("Context Menu UI")]
-    [SerializeField] private Canvas uiCanvas;              // your UI Canvas
-    [SerializeField] private RectTransform contextPanel;   // panel with Delete + Close buttons
+    [SerializeField] private Canvas uiCanvas;
+    [SerializeField] private RectTransform contextPanel;
     [SerializeField] private bool hideMenuOnLeftClick = true;
 
-    // Per-cell spawned object we keep around (may be inactive)
+    [Header("Load Back-Compat")]
+    [Tooltip("For old save files that have no owner field, use this owner when loading.")]
+    [SerializeField] private Kingdom defaultLoadOwner = Kingdom.Player;
+
     private readonly Dictionary<Vector2Int, GameObject> placed = new();
-    // Active tile type index per cell (only recorded when GO is active)
     private readonly Dictionary<Vector2Int, int> placedIndex = new();
 
-    // state for open context menu
     private Vector2Int? currentCell = null;
+
+    // Neighbor offsets (Pointy = odd-r, Flat = odd-q)
+    static readonly Vector2Int[] P_ODD_R_EVEN = { new(+1, 0), new(0, +1), new(-1, +1), new(-1, 0), new(-1, -1), new(0, -1) };
+    static readonly Vector2Int[] P_ODD_R_ODD = { new(+1, 0), new(+1, +1), new(0, +1), new(-1, 0), new(0, -1), new(+1, -1) };
+    static readonly Vector2Int[] F_ODD_Q_EVEN = { new(0, +1), new(-1, 0), new(-1, -1), new(0, -1), new(+1, -1), new(+1, 0) };
+    static readonly Vector2Int[] F_ODD_Q_ODD = { new(0, +1), new(-1, +1), new(-1, 0), new(0, -1), new(+1, 0), new(+1, +1) };
 
     void Awake()
     {
         if (contextPanel) contextPanel.gameObject.SetActive(false);
+        if (grid) TileRegistry.SetGrid(grid);
     }
 
     void Update()
@@ -45,7 +67,7 @@ public class HexPlacer : MonoBehaviour
 
         if (!hover || !grid) return;
 
-        // Left-click: place/replace
+        // Left-click: place/replace with current selection & current kingdom
         if (Input.GetMouseButtonDown(0))
         {
             if (hideMenuOnLeftClick) HideContextMenu();
@@ -70,15 +92,27 @@ public class HexPlacer : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.Escape)) HideContextMenu();
     }
 
-    // === Placement (lazy activation, but swap prefab if type changed) ===
+    // === Placement (editor/player) — uses current dropdown owner & pays cost ===
     public void PlaceOrReplaceAt(int x, int z, int tileTypeIndex)
+    {
+        var k = kingdomSelector ? kingdomSelector.Current : Kingdom.Player;
+        PlaceInternal(x, z, tileTypeIndex, k, skipCost: false);
+    }
+
+    // === Placement for LOAD — owner comes from save; no cost ===
+    void PlaceFromSave(int x, int z, int tileTypeIndex, Kingdom owner)
+    {
+        PlaceInternal(x, z, tileTypeIndex, owner, skipCost: true);
+    }
+
+    // Core place logic shared by both code paths
+    void PlaceInternal(int x, int z, int tileTypeIndex, Kingdom owner, bool skipCost)
     {
         if (tileTypes == null || tileTypeIndex < 0 || tileTypeIndex >= tileTypes.Length) return;
         var tt = tileTypes[tileTypeIndex]; if (!tt || !tt.Prefab) return;
 
         var key = new Vector2Int(x, z);
 
-        // Determine if we need a NEW instance (type changed) or can reuse existing
         placed.TryGetValue(key, out var existing);
         bool hasActive = placedIndex.TryGetValue(key, out int existingIndex);
         bool needsNewInstance = (existing == null) || (hasActive && existingIndex != tileTypeIndex);
@@ -86,44 +120,53 @@ public class HexPlacer : MonoBehaviour
         GameObject go;
         if (needsNewInstance)
         {
-            // Destroy old if present (active or inactive) when type differs
             if (existing) Destroy(existing);
 
-            // Instantiate a fresh prefab of the requested type at the cell center
             Vector3 local = HexMatrix.Center(grid.cellSize, x, z, grid.Orientation);
             Vector3 world = grid.transform.TransformPoint(local);
 
             go = Instantiate(tt.Prefab, world, grid.transform.rotation);
             go.transform.SetParent(grid.transform, true);
-            go.SetActive(false); // activate only after successful placement
+            go.SetActive(false);
 
             placed[key] = go;
         }
         else
         {
-            // Reuse existing instance (same type)
             go = existing;
-            if (go == null) return; // safety
+            if (go == null) return;
         }
 
-        // Initialize tile + pay cost/assign owner
         var cell = go.GetComponent<TileCell>();
         if (cell)
         {
             cell.InitFromType(tt);
-            var k = kingdomSelector ? kingdomSelector.Current : Kingdom.Player;
-            if (!cell.TryPlace(k))
+            cell.SetCoords(x, z, grid);
+
+            if (skipCost)
             {
-                // Not enough resources (unless DevMode); keep it inactive & clear active record
-                go.SetActive(false);
-                placedIndex.Remove(key);
-                return;
+                // Loading: set owner directly, no payment
+                cell.ForceSetOwner(owner);
+            }
+            else
+            {
+                // Live placement: pay & set owner
+                if (!cell.TryPlace(owner))
+                {
+                    go.SetActive(false);
+                    placedIndex.Remove(key);
+                    return;
+                }
             }
         }
 
-        // Success: activate and record active type index
+        // Activate and record type
         go.SetActive(true);
         placedIndex[key] = tileTypeIndex;
+
+        // Rebuild borders for this cell + neighbors
+        go.GetComponent<BorderPainter>()?.RebuildBorders();
+        RebuildNeighbors(x, z);
     }
 
     public bool TryRemoveAt(int x, int z)
@@ -131,9 +174,10 @@ public class HexPlacer : MonoBehaviour
         var key = new Vector2Int(x, z);
         if (!placed.TryGetValue(key, out var go) || !go) return false;
 
-        // Lazy delete: just deactivate; keep object for possible reuse later
         go.SetActive(false);
         placedIndex.Remove(key);
+
+        RebuildNeighbors(x, z);
         return true;
     }
 
@@ -144,12 +188,26 @@ public class HexPlacer : MonoBehaviour
         HideContextMenu();
     }
 
-    // === Save/Load (only saves ACTIVE tiles) ===
+    // === Save/Load (now saves owner as well) ===
     public MapSnapshot CreateSnapshot()
     {
         var snap = new MapSnapshot { width = grid.width, height = grid.height };
+
         foreach (var kv in placedIndex)
-            snap.cells.Add(new MapCell { x = kv.Key.x, z = kv.Key.y, index = kv.Value });
+        {
+            var key = kv.Key;
+            int typeIdx = kv.Value;
+
+            // read owner from the active TileCell
+            Kingdom owner = Kingdom.Player;
+            if (placed.TryGetValue(key, out var go) && go)
+            {
+                var cell = go.GetComponent<TileCell>();
+                if (cell) owner = cell.Owner;
+            }
+
+            snap.cells.Add(new MapCell { x = key.x, z = key.y, index = typeIdx, owner = (int)owner });
+        }
         return snap;
     }
 
@@ -157,8 +215,13 @@ public class HexPlacer : MonoBehaviour
     {
         if (snap == null) return;
         ClearAll();
+
         foreach (var c in snap.cells)
-            PlaceOrReplaceAt(c.x, c.z, c.index);
+        {
+            // Backward compatibility: old saves have owner = -1
+            Kingdom owner = (c.owner >= 0 && c.owner <= 5) ? (Kingdom)c.owner : defaultLoadOwner;
+            PlaceFromSave(c.x, c.z, c.index, owner);
+        }
     }
 
     // === Context Menu UI ===
@@ -183,7 +246,6 @@ public class HexPlacer : MonoBehaviour
         if (contextPanel) contextPanel.gameObject.SetActive(false);
     }
 
-    // --- Hook these to the two UI buttons on your panel ---
     public void UI_DeleteTile()
     {
         if (currentCell.HasValue)
@@ -194,5 +256,30 @@ public class HexPlacer : MonoBehaviour
     public void UI_CloseMenu()
     {
         HideContextMenu();
+    }
+
+    // --- Helpers ---
+    void RebuildNeighbors(int x, int z)
+    {
+        for (int dir = 0; dir < 6; dir++)
+        {
+            var nz = NeighborXZ_Local(x, z, dir, grid);
+            if (TileRegistry.TryGetCell(nz.x, nz.y, out var nCell) && nCell && nCell.gameObject.activeSelf)
+                nCell.GetComponent<BorderPainter>()?.RebuildBorders();
+        }
+    }
+
+    static Vector2Int NeighborXZ_Local(int x, int z, int dir, HexGrid grid)
+    {
+        if (grid.Orientation == HexGrid.HexOrientation.PointyTop)
+        {
+            var d = ((z & 1) == 0) ? P_ODD_R_EVEN[dir % 6] : P_ODD_R_ODD[dir % 6];
+            return new Vector2Int(x + d.x, z + d.y);
+        }
+        else
+        {
+            var d = ((x & 1) == 0) ? F_ODD_Q_EVEN[dir % 6] : F_ODD_Q_ODD[dir % 6];
+            return new Vector2Int(x + d.x, z + d.y);
+        }
     }
 }

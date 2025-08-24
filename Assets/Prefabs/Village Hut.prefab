@@ -12,6 +12,7 @@ GameObject:
   - component: {fileID: 2900511910793639664}
   - component: {fileID: 4610822264317026331}
   - component: {fileID: 7492521311806426752}
+  - component: {fileID: 873126246845689939}
   m_Layer: 0
   m_Name: Village Hut
   m_TagString: Untagged
@@ -105,3 +106,19 @@ MonoBehaviour:
     Wood: 0
     Influence: 0
   type: {fileID: 0}
+  x: -1
+  z: -1
+--- !u!114 &873126246845689939
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2542414586263857869}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ee30ff1eaea1a014caf404dd2b69b6f5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  borderPolePrefab: {fileID: 1509461623050097288, guid: 9f33354b6657fe94aafbbc568826416a, type: 3}
+  inwardOffset: 0

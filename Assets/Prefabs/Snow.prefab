@@ -12,6 +12,7 @@ GameObject:
   - component: {fileID: 7339751541148816608}
   - component: {fileID: 241505858721461448}
   - component: {fileID: -6124934534975530223}
+  - component: {fileID: -5300493576657679607}
   m_Layer: 0
   m_Name: Snow
   m_TagString: Untagged
@@ -105,3 +106,19 @@ MonoBehaviour:
     Wood: 0
     Influence: 0
   type: {fileID: 11400000, guid: 1f071d34c614ddf43be9325c14dcc47f, type: 2}
+  x: -1
+  z: -1
+--- !u!114 &-5300493576657679607
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6852642308809138200}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ee30ff1eaea1a014caf404dd2b69b6f5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  borderPolePrefab: {fileID: 1509461623050097288, guid: 9f33354b6657fe94aafbbc568826416a, type: 3}
+  inwardOffset: 0

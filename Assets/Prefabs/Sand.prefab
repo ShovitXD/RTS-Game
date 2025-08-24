@@ -12,6 +12,7 @@ GameObject:
   - component: {fileID: 4734016778201193184}
   - component: {fileID: 5592834482837911612}
   - component: {fileID: 8111311204238305405}
+  - component: {fileID: -3354898287137759772}
   m_Layer: 0
   m_Name: Sand
   m_TagString: Untagged
@@ -105,3 +106,19 @@ MonoBehaviour:
     Wood: 0
     Influence: 0
   type: {fileID: 0}
+  x: -1
+  z: -1
+--- !u!114 &-3354898287137759772
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5008402300978610339}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ee30ff1eaea1a014caf404dd2b69b6f5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  borderPolePrefab: {fileID: 1509461623050097288, guid: 9f33354b6657fe94aafbbc568826416a, type: 3}
+  inwardOffset: 0

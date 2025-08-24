@@ -2704,6 +2704,7 @@ MonoBehaviour:
   uiCanvas: {fileID: 1637825145}
   contextPanel: {fileID: 1919872212}
   hideMenuOnLeftClick: 0
+  defaultLoadOwner: 0
 --- !u!114 &1065919673
 MonoBehaviour:
   m_ObjectHideFlags: 0
