@@ -19,6 +19,7 @@ public sealed class GameManager : MonoBehaviour
     public UnityEvent<int> OnPlayerGoldChanged;
     public UnityEvent<int> OnPlayerWoodChanged;
     public UnityEvent<int> OnPlayerInfluenceChanged;
+    public UnityEvent<int> OnPlayerPopulationChanged;   // NEW
 
     [Header("Turn System (stub for future)")]
     [SerializeField] private int turnNumber = 0;
@@ -112,5 +113,6 @@ public sealed class GameManager : MonoBehaviour
         OnPlayerGoldChanged?.Invoke(r.Gold);
         OnPlayerWoodChanged?.Invoke(r.Wood);
         OnPlayerInfluenceChanged?.Invoke(r.Influence);
+        OnPlayerPopulationChanged?.Invoke(r.Population);   // NEW
     }
 }

@@ -10,5 +10,5 @@ public class TileType : ScriptableObject
     public Resources Cost;
 
     [Header("Default Per-Cell Values")]
-    public Resources Values;
+    public Resources Values;   
 }
