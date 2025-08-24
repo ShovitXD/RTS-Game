@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.EventSystems; 
+using UnityEngine.EventSystems;
 
 [System.Serializable] public class MapCell { public int x, z, index; }
 [System.Serializable] public class MapSnapshot { public int width, height; public List<MapCell> cells = new(); }
@@ -24,9 +24,9 @@ public class HexPlacer : MonoBehaviour
     [SerializeField] private RectTransform contextPanel;   // panel with Delete + Close buttons
     [SerializeField] private bool hideMenuOnLeftClick = true;
 
-    // Per-cell spawned object (kept and toggled active/inactive)
+    // Per-cell spawned object we keep around (may be inactive)
     private readonly Dictionary<Vector2Int, GameObject> placed = new();
-    // Per-cell active tile type index (only for ACTIVE tiles)
+    // Active tile type index per cell (only recorded when GO is active)
     private readonly Dictionary<Vector2Int, int> placedIndex = new();
 
     // state for open context menu
@@ -39,7 +39,7 @@ public class HexPlacer : MonoBehaviour
 
     void Update()
     {
-        // ✅ If pointer is over any UI element, block placement/menu
+        // Block input when the pointer is over any UI
         if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject())
             return;
 
@@ -53,7 +53,7 @@ public class HexPlacer : MonoBehaviour
                 PlaceOrReplaceAt(x, z, index);
         }
 
-        // Right-click: open menu if a tile exists at that cell
+        // Right-click: open menu if there is an ACTIVE tile in that cell
         if (Input.GetMouseButtonDown(1))
         {
             if (hover.TryGetHexUnderMouse(out int x, out int z))
@@ -67,11 +67,10 @@ public class HexPlacer : MonoBehaviour
             else HideContextMenu();
         }
 
-        // ESC closes menu
         if (Input.GetKeyDown(KeyCode.Escape)) HideContextMenu();
     }
 
-    // === Placement (lazy activation) ===
+    // === Placement (lazy activation, but swap prefab if type changed) ===
     public void PlaceOrReplaceAt(int x, int z, int tileTypeIndex)
     {
         if (tileTypes == null || tileTypeIndex < 0 || tileTypeIndex >= tileTypes.Length) return;
@@ -79,20 +78,35 @@ public class HexPlacer : MonoBehaviour
 
         var key = new Vector2Int(x, z);
 
-        // Reuse existing GO if present; otherwise instantiate ONCE and keep for reuse
-        if (!placed.TryGetValue(key, out var go) || !go)
+        // Determine if we need a NEW instance (type changed) or can reuse existing
+        placed.TryGetValue(key, out var existing);
+        bool hasActive = placedIndex.TryGetValue(key, out int existingIndex);
+        bool needsNewInstance = (existing == null) || (hasActive && existingIndex != tileTypeIndex);
+
+        GameObject go;
+        if (needsNewInstance)
         {
+            // Destroy old if present (active or inactive) when type differs
+            if (existing) Destroy(existing);
+
+            // Instantiate a fresh prefab of the requested type at the cell center
             Vector3 local = HexMatrix.Center(grid.cellSize, x, z, grid.Orientation);
             Vector3 world = grid.transform.TransformPoint(local);
 
             go = Instantiate(tt.Prefab, world, grid.transform.rotation);
             go.transform.SetParent(grid.transform, true);
-            go.SetActive(false); // stays inactive until placement confirmed
+            go.SetActive(false); // activate only after successful placement
 
             placed[key] = go;
         }
+        else
+        {
+            // Reuse existing instance (same type)
+            go = existing;
+            if (go == null) return; // safety
+        }
 
-        // Setup this tile instance with the selected type
+        // Initialize tile + pay cost/assign owner
         var cell = go.GetComponent<TileCell>();
         if (cell)
         {
@@ -100,14 +114,14 @@ public class HexPlacer : MonoBehaviour
             var k = kingdomSelector ? kingdomSelector.Current : Kingdom.Player;
             if (!cell.TryPlace(k))
             {
-                // Not enough resources (unless DevMode); leave it inactive
+                // Not enough resources (unless DevMode); keep it inactive & clear active record
                 go.SetActive(false);
                 placedIndex.Remove(key);
                 return;
             }
         }
 
-        // ✅ Activate after successful placement
+        // Success: activate and record active type index
         go.SetActive(true);
         placedIndex[key] = tileTypeIndex;
     }
@@ -117,15 +131,14 @@ public class HexPlacer : MonoBehaviour
         var key = new Vector2Int(x, z);
         if (!placed.TryGetValue(key, out var go) || !go) return false;
 
-        // Lazy delete: just deactivate; keep object for future reuse
+        // Lazy delete: just deactivate; keep object for possible reuse later
         go.SetActive(false);
-        placedIndex.Remove(key); // no active tile recorded for this cell
+        placedIndex.Remove(key);
         return true;
     }
 
     public void ClearAll()
     {
-        // Deactivate all and clear active indices; keep instances for reuse
         foreach (var kv in placed) if (kv.Value) kv.Value.SetActive(false);
         placedIndex.Clear();
         HideContextMenu();
@@ -144,8 +157,6 @@ public class HexPlacer : MonoBehaviour
     {
         if (snap == null) return;
         ClearAll();
-
-        // Activate tiles described by snapshot; instantiate if cell has no instance yet
         foreach (var c in snap.cells)
             PlaceOrReplaceAt(c.x, c.z, c.index);
     }
