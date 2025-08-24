@@ -2648,8 +2648,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   <Orientation>k__BackingField: 0
-  <width>k__BackingField: 17
-  <height>k__BackingField: 9
+  <width>k__BackingField: 36
+  <height>k__BackingField: 23
   <cellSize>k__BackingField: 0.5
   <HexPrefab>k__BackingField: {fileID: 0}
 --- !u!4 &1065919670
@@ -2698,6 +2698,7 @@ MonoBehaviour:
   tileTypes:
   - {fileID: 11400000, guid: 47b741d8037a1a34eb1f5eb2ca770340, type: 2}
   - {fileID: 11400000, guid: bbae8974580206440b0316a915356232, type: 2}
+  - {fileID: 11400000, guid: 1f071d34c614ddf43be9325c14dcc47f, type: 2}
   index: 0
   kingdomSelector: {fileID: 898926301}
   uiCanvas: {fileID: 1637825145}
