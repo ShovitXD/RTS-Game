@@ -1,0 +1,25 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2083ec846cb3d5a4ea7d0cc6c3173a28, type: 3}
+  m_Name: Village hut
+  m_EditorClassIdentifier: 
+  Prefab: {fileID: 2542414586263857869, guid: 163843efedffdf747a6199d53bbec9f9, type: 3}
+  Cost:
+    Gold: 0
+    Wood: 0
+    Influence: 0
+    Population: 0
+  Values:
+    Gold: 0
+    Wood: 0
+    Influence: 0
+    Population: 0

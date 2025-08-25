@@ -106,7 +106,8 @@ MonoBehaviour:
     Gold: 0
     Wood: 0
     Influence: 0
-  type: {fileID: 0}
+    Population: 0
+  type: {fileID: 11400000, guid: 6861ead595982584ab3c8636c8ca8578, type: 2}
   x: -1
   z: -1
 --- !u!114 &-7068976491717182441
@@ -121,7 +122,5 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ee30ff1eaea1a014caf404dd2b69b6f5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  cell: {fileID: 0}
-  grid: {fileID: 0}
   borderPolePrefab: {fileID: 0}
   inwardOffset: 0.05

@@ -2165,18 +2165,23 @@ MonoBehaviour:
   - Gold: 0
     Wood: 0
     Influence: 0
+    Population: 0
   - Gold: 0
     Wood: 0
     Influence: 0
+    Population: 0
   - Gold: 0
     Wood: 0
     Influence: 0
+    Population: 0
   - Gold: 0
     Wood: 0
     Influence: 0
+    Population: 0
   - Gold: 0
     Wood: 0
     Influence: 0
+    Population: 0
   OnPlayerGoldChanged:
     m_PersistentCalls:
       m_Calls: []
@@ -2184,6 +2189,9 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   OnPlayerInfluenceChanged:
+    m_PersistentCalls:
+      m_Calls: []
+  OnPlayerPopulationChanged:
     m_PersistentCalls:
       m_Calls: []
   turnNumber: 0
@@ -2699,6 +2707,14 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 47b741d8037a1a34eb1f5eb2ca770340, type: 2}
   - {fileID: 11400000, guid: bbae8974580206440b0316a915356232, type: 2}
   - {fileID: 11400000, guid: 1f071d34c614ddf43be9325c14dcc47f, type: 2}
+  - {fileID: 11400000, guid: c9f5b8b592294cd48a6a61db99f86034, type: 2}
+  - {fileID: 11400000, guid: e9c8bb8b11da77b48a9cfc10bd3d5db8, type: 2}
+  - {fileID: 11400000, guid: 78d153b117993a5409fa95f99754a66c, type: 2}
+  - {fileID: 11400000, guid: 742f08f782430334d8cf115a3a20ceab, type: 2}
+  - {fileID: 11400000, guid: 83b2cafcda2a5824090cc6b4aa86d286, type: 2}
+  - {fileID: 11400000, guid: 6861ead595982584ab3c8636c8ca8578, type: 2}
+  - {fileID: 11400000, guid: ce230a01efb48834eb0e724996133872, type: 2}
+  - {fileID: 11400000, guid: 6d8b3b054fce32c4bad88d03fe300138, type: 2}
   index: 0
   kingdomSelector: {fileID: 898926301}
   uiCanvas: {fileID: 1637825145}
