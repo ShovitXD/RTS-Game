@@ -8,13 +8,34 @@ public class BorderPainter : MonoBehaviour
     private TileCell cell;
     private HexGrid grid;
 
-    [Header("Border")]
-    [SerializeField] private GameObject borderPolePrefab;   // assign in prefab
-    [Tooltip("Nudge poles slightly inward so they don't overlap neighbors")]
-    [SerializeField] private float inwardOffset = 0.05f;
+    [Header("Edge Strip Prefab (NO material)")]
+    [Tooltip("Prefab with an EdgeStrip component; thin quad/mesh. Local Z = length, X = thickness, Y = height.")]
+    [SerializeField] private GameObject edgeStripPrefab;
 
-    // spawned poles per corner index (0..5)
-    private readonly Dictionary<int, GameObject> cornerPoles = new Dictionary<int, GameObject>(6);
+    [Header("Strip Size & Placement")]
+    [Tooltip("Local Y scale (height) of the strip.")]
+    [SerializeField, Min(0f)] private float heightY = 0.1f;
+    [Tooltip("Local X scale (thickness) of the strip.")]
+    [SerializeField, Min(0f)] private float thicknessX = 0.05f;
+    [Tooltip("Lift above the ground to avoid z-fighting.")]
+    [SerializeField, Min(0f)] private float yLift = 0.01f;
+    [Tooltip("Inset amount: pulls the border inward from the hex edge (in world units along the edge normal).")]
+    [SerializeField, Min(0f)] private float lateralOffset = 0.05f;
+
+    [Header("Per-Kingdom Materials")]
+    [SerializeField] private Material playerMat;
+    [SerializeField] private Material enemyMat;
+    [SerializeField] private Material friendlyMat;
+    [SerializeField] private Material faction3Mat;
+    [SerializeField] private Material faction4Mat;
+    // Unowned/None => no border
+
+    [Header("Rules")]
+    [Tooltip("If true, draw borders only when the neighbor is owned by a (different) kingdom; no borders against empty cells.")]
+    [SerializeField] private bool drawOnlyIfNeighborOwned = true;
+
+    // one strip per edge index (0..5)
+    private readonly Dictionary<int, GameObject> edgeObjs = new Dictionary<int, GameObject>(6);
 
     void Awake()
     {
@@ -27,85 +48,114 @@ public class BorderPainter : MonoBehaviour
         if (cell != null && cell.HasCoords) RebuildBorders();
     }
 
-    /// <summary>
-    /// Show poles at corners that touch an existing neighbor with a different kingdom.
-    /// Hide poles for same-kingdom neighbors or empty neighbors.
-    /// </summary>
     public void RebuildBorders()
     {
         if (!isActiveAndEnabled) return;
-        if (cell == null || grid == null || borderPolePrefab == null) return;
+        if (cell == null || grid == null || edgeStripPrefab == null) return;
         if (!cell.HasCoords) return;
 
         var myK = cell.Owner;
-        bool[] edgeIsBoundary = new bool[6];
+        if (myK == Kingdom.None) { HideAllEdges(); return; }
 
-        // An edge is a boundary ONLY if there IS a neighbor AND its owner differs.
+        bool[] edgeIsBoundary = new bool[6];
+        Vector2Int[] neighborXZs = new Vector2Int[6];
+
         for (int dir = 0; dir < 6; dir++)
         {
             var nz = NeighborXZ(cell.X, cell.Z, dir, grid);
+            neighborXZs[dir] = nz;
+
             if (TileRegistry.TryGetCell(nz.x, nz.y, out var nCell) && nCell && nCell.gameObject.activeSelf)
             {
-                edgeIsBoundary[dir] = (nCell.Owner != myK);
+                edgeIsBoundary[dir] = drawOnlyIfNeighborOwned
+                    ? (nCell.Owner != Kingdom.None && nCell.Owner != myK)
+                    : (nCell.Owner != myK);
             }
             else
             {
-                edgeIsBoundary[dir] = false; // empty neighbor => NO pole (per your request)
+                edgeIsBoundary[dir] = false;
             }
         }
 
-        // Local center + corners of this hex
-        var localCenter = HexMatrix.Center(grid.cellSize, cell.X, cell.Z, grid.Orientation);
-        var localCorners = HexMatrix.Corners(grid.cellSize, grid.Orientation);
+        Vector3 localCenter = HexMatrix.Center(grid.cellSize, cell.X, cell.Z, grid.Orientation);
+        Vector3[] localCorners = HexMatrix.Corners(grid.cellSize, grid.Orientation);
+        Vector3 centerWorld = grid.transform.TransformPoint(localCenter);
+        Material mat = GetMaterialFor(myK);
 
-        // Corner c adjacency depends on orientation:
-        // - PointyTop: corner c is between edges c and (c+1)%6
-        // - FlatTop : corner c is between edges (c+5)%6 and c
-        for (int c = 0; c < 6; c++)
+        for (int e = 0; e < 6; e++)
         {
-            int eA, eB;
-            if (grid.Orientation == HexGrid.HexOrientation.PointyTop)
+            if (!edgeIsBoundary[e])
             {
-                eA = c;
-                eB = (c + 1) % 6;
-            }
-            else // FlatTop
-            {
-                eA = (c + 5) % 6;
-                eB = c;
+                SetEdgeActive(e, false);
+                continue;
             }
 
-            bool cornerOnBoundary = edgeIsBoundary[eA] || edgeIsBoundary[eB];
+            // Neighbor center (world)
+            Vector3 nCenterLocal = HexMatrix.Center(grid.cellSize, neighborXZs[e].x, neighborXZs[e].y, grid.Orientation);
+            Vector3 nCenterWorld = grid.transform.TransformPoint(nCenterLocal);
 
-            if (cornerOnBoundary)
+            // Find the edge of THIS hex that faces the neighbor
+            (int cA, int cB) = FindEdgeFacingNeighbor(centerWorld, localCenter, localCorners, grid.transform, nCenterWorld);
+
+            // --- Inset the edge toward the cell center (shrink corner ring) ---
+            Vector3 vA = localCorners[cA]; vA.y = 0f;
+            Vector3 vB = localCorners[cB]; vB.y = 0f;
+
+            float magA = vA.magnitude;
+            float magB = vB.magnitude;
+
+            // Clamp inset so we don't cross the center
+            float insetA = Mathf.Min(lateralOffset, Mathf.Max(0f, magA - 1e-4f));
+            float insetB = Mathf.Min(lateralOffset, Mathf.Max(0f, magB - 1e-4f));
+
+            Vector3 aLocalInset = localCenter + (magA > 1e-6f ? (vA - vA.normalized * insetA) : vA);
+            Vector3 bLocalInset = localCenter + (magB > 1e-6f ? (vB - vB.normalized * insetB) : vB);
+
+            // World endpoints
+            Vector3 aW = grid.transform.TransformPoint(aLocalInset);
+            Vector3 bW = grid.transform.TransformPoint(bLocalInset);
+
+            // Small vertical lift
+            aW.y += yLift;
+            bW.y += yLift;
+
+            // Ensure/activate the strip object
+            if (!edgeObjs.TryGetValue(e, out var stripGO) || !stripGO)
             {
-                if (!cornerPoles.TryGetValue(c, out var pole) || !pole)
-                {
-                    pole = Instantiate(borderPolePrefab, transform);
-                    cornerPoles[c] = pole;
-                }
-
-                Vector3 cornerLocal = localCenter + localCorners[c];
-                Vector3 centerWorld = grid.transform.TransformPoint(localCenter);
-                Vector3 cornerWorld = grid.transform.TransformPoint(cornerLocal);
-
-                // inward nudge so poles don't sit exactly on the edge
-                Vector3 inward = (centerWorld - cornerWorld).normalized * inwardOffset;
-                pole.transform.position = cornerWorld + inward;
-
-                // Optional: rotate to face outward
-                Vector3 outward = (cornerWorld - centerWorld);
-                outward.y = 0f;
-                if (outward.sqrMagnitude > 1e-6f)
-                    pole.transform.rotation = Quaternion.LookRotation(outward.normalized, Vector3.up);
-
-                if (!pole.activeSelf) pole.SetActive(true);
+                stripGO = Instantiate(edgeStripPrefab);
+                stripGO.transform.SetParent(transform, false);
+                edgeObjs[e] = stripGO;
             }
-            else
-            {
-                if (cornerPoles.TryGetValue(c, out var pole) && pole)
-                    pole.SetActive(false);
-            }
+            if (!stripGO.activeSelf) stripGO.SetActive(true);
+
+            var strip = stripGO.GetComponent<EdgeStrip>();
+            if (!strip) strip = stripGO.AddComponent<EdgeStrip>();
+            strip.Configure(aW, bW, mat, thicknessX, heightY);
+        }
+    }
+
+    private void SetEdgeActive(int e, bool on)
+    {
+        if (edgeObjs.TryGetValue(e, out var go) && go)
+            go.SetActive(on);
+    }
+
+    private void HideAllEdges()
+    {
+        foreach (var kv in edgeObjs)
+            if (kv.Value) kv.Value.SetActive(false);
+    }
+
+    private Material GetMaterialFor(Kingdom k)
+    {
+        switch (k)
+        {
+            case Kingdom.Player: return playerMat;
+            case Kingdom.Enemy: return enemyMat;
+            case Kingdom.Friendly: return friendlyMat;
+            case Kingdom.Faction3: return faction3Mat;
+            case Kingdom.Faction4: return faction4Mat;
+            default: return null;
         }
     }
 
@@ -144,5 +194,35 @@ public class BorderPainter : MonoBehaviour
             var d = ((x & 1) == 0) ? F_ODD_Q_EVEN[dir % 6] : F_ODD_Q_ODD[dir % 6];
             return new Vector2Int(x + d.x, z + d.y);
         }
+    }
+
+    // --- Edge finder (uses localCenter when transforming corners) ---
+    static (int a, int b) FindEdgeFacingNeighbor(
+        Vector3 centerW,
+        Vector3 localCenter,
+        Vector3[] localCorners,
+        Transform gridTf,
+        Vector3 neighborCenterW)
+    {
+        // Build world-space corner ring for THIS cell (center + corners)
+        Vector3[] cw = new Vector3[6];
+        for (int i = 0; i < 6; i++)
+            cw[i] = gridTf.TransformPoint(localCenter + localCorners[i]);
+
+        Vector3 toNeighbor = neighborCenterW - centerW; toNeighbor.y = 0f;
+        if (toNeighbor.sqrMagnitude < 1e-8f) return (0, 1);
+        toNeighbor.Normalize();
+
+        float bestDot = float.NegativeInfinity;
+        int bestA = 0, bestB = 1;
+        for (int i = 0; i < 6; i++)
+        {
+            int j = (i + 1) % 6;
+            Vector3 mid = 0.5f * (cw[i] + cw[j]);
+            Vector3 dir = mid - centerW; dir.y = 0f;
+            float d = Vector3.Dot(dir.normalized, toNeighbor);
+            if (d > bestDot) { bestDot = d; bestA = i; bestB = j; }
+        }
+        return (bestA, bestB);
     }
 }

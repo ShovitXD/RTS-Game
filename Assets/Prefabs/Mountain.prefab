@@ -105,9 +105,11 @@ MonoBehaviour:
     Gold: 0
     Wood: 0
     Influence: 0
+    Population: 0
   type: {fileID: 11400000, guid: bbae8974580206440b0316a915356232, type: 2}
-  x: -1
-  z: -1
+  currentPopulation: 0
+  x: 1
+  z: 1
 --- !u!114 &2480243556660759977
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -120,5 +122,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ee30ff1eaea1a014caf404dd2b69b6f5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  borderPolePrefab: {fileID: 1509461623050097288, guid: 9f33354b6657fe94aafbbc568826416a, type: 3}
-  inwardOffset: 0
+  edgeStripPrefab: {fileID: 1509461623050097288, guid: 9f33354b6657fe94aafbbc568826416a, type: 3}
+  heightY: 0.1
+  thicknessX: 0.05
+  yLift: 0.01
+  lateralOffset: 0.05
+  playerMat: {fileID: 2100000, guid: 1672a8ae77255084694214a0680e6500, type: 2}
+  enemyMat: {fileID: 2100000, guid: 71f6b6d8c2a0301479d735536779e053, type: 2}
+  friendlyMat: {fileID: 2100000, guid: 87a7ee81cba6cf945b496b1eb841ff7e, type: 2}
+  faction3Mat: {fileID: 2100000, guid: e7a0ef4ac26314040a2920773e697815, type: 2}
+  faction4Mat: {fileID: 2100000, guid: f0a06e271b6568f4da8d585cd1d94d0b, type: 2}
+  drawOnlyIfNeighborOwned: 1

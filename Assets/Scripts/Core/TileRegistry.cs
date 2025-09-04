@@ -1,13 +1,14 @@
+// Scripts/Core/TileRegistry.cs
 using System.Collections.Generic;
 using UnityEngine;
 
 public static class TileRegistry
 {
-    // Active HexGrid reference (set by HexPlacer)
-    public static HexGrid GridRef { get; private set; }
+    private static readonly Dictionary<Vector2Int, TileCell> cells = new Dictionary<Vector2Int, TileCell>(256);
 
-    // Active tiles by grid coord
-    private static readonly Dictionary<Vector2Int, TileCell> cells = new();
+    public static HexGrid GridRef { get; private set; }
+    public static IEnumerable<TileCell> AllCells => cells.Values;
+    public static int Count => cells.Count;
 
     public static void SetGrid(HexGrid grid) => GridRef = grid;
 
@@ -18,13 +19,17 @@ public static class TileRegistry
 
     public static void Unregister(int x, int z, TileCell cell)
     {
-        var key = new Vector2Int(x, z);
-        if (cells.TryGetValue(key, out var existing) && existing == cell)
-            cells.Remove(key);
+        var k = new Vector2Int(x, z);
+        if (cells.TryGetValue(k, out var existing) && existing == cell)
+            cells.Remove(k);
     }
 
     public static bool TryGetCell(int x, int z, out TileCell cell)
+        => cells.TryGetValue(new Vector2Int(x, z), out cell);
+
+    public static void Clear()
     {
-        return cells.TryGetValue(new Vector2Int(x, z), out cell);
+        cells.Clear();
+        GridRef = null;
     }
 }

@@ -7,7 +7,7 @@ public struct Resources
     public int Gold;
     public int Wood;
     public int Influence;
-    public int Population;   // NEW
+    public int Population;   // keep this so GameManager can track totals/UI/events
 
     public static readonly Resources Zero = new Resources();
 

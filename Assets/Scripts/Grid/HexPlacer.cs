@@ -222,6 +222,7 @@ public class HexPlacer : MonoBehaviour
             Kingdom owner = (c.owner >= 0 && c.owner <= 5) ? (Kingdom)c.owner : defaultLoadOwner;
             PlaceFromSave(c.x, c.z, c.index, owner);
         }
+        RebuildAllBorders();
     }
 
     // === Context Menu UI ===
@@ -282,4 +283,14 @@ public class HexPlacer : MonoBehaviour
             return new Vector2Int(x + d.x, z + d.y);
         }
     }
+    void RebuildAllBorders()
+    {
+        foreach (var kv in placed)
+        {
+            var go = kv.Value;
+            if (go && go.activeSelf)
+                go.GetComponent<BorderPainter>()?.RebuildBorders();
+        }
+    }
+
 }
