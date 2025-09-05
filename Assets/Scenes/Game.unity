@@ -2127,6 +2127,7 @@ GameObject:
   - component: {fileID: 638681567}
   - component: {fileID: 638681569}
   - component: {fileID: 638681568}
+  - component: {fileID: 638681570}
   m_Layer: 0
   m_Name: GameManager
   m_TagString: Untagged
@@ -2161,7 +2162,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ae8f11738ddf3aa4aadef6ad5c28e4ff, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  devMode: 1
+  devMode: 0
   wallets:
   - Gold: 0
     Wood: 0
@@ -2213,6 +2214,25 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   gameManager: {fileID: 638681568}
+--- !u!114 &638681570
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 638681565}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d5f1fa576efd68f4694ea9d743d942fa, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  devMode: 1
+  devUIElements:
+  - {fileID: 2062925110}
+  - {fileID: 1250379218}
+  - {fileID: 1325105122}
+  - {fileID: 1591549581}
+  - {fileID: 109925718}
 --- !u!1 &727866604
 GameObject:
   m_ObjectHideFlags: 0
@@ -2749,7 +2769,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   placer: {fileID: 1065919672}
   fileName: map_snapshot.json
-  autoLoadOnStart: 0
+  autoLoadOnStart: 1
 --- !u!1 &1150197488
 GameObject:
   m_ObjectHideFlags: 0

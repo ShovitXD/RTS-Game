@@ -28,11 +28,14 @@ public class BorderPainter : MonoBehaviour
     [SerializeField] private Material friendlyMat;
     [SerializeField] private Material faction3Mat;
     [SerializeField] private Material faction4Mat;
-    // Unowned/None => no border
+    // Unowned/None => material not used
 
     [Header("Rules")]
-    [Tooltip("If true, draw borders only when the neighbor is owned by a (different) kingdom; no borders against empty cells.")]
+    [Tooltip("If true, draw borders only when the neighbor is owned by a (different) kingdom; previously blocked borders against empty cells.")]
     [SerializeField] private bool drawOnlyIfNeighborOwned = true;
+
+    [Tooltip("Also draw borders against unowned/missing neighbors (Kingdom.None or no cell).")]
+    [SerializeField] private bool drawAgainstUnowned = true;
 
     // one strip per edge index (0..5)
     private readonly Dictionary<int, GameObject> edgeObjs = new Dictionary<int, GameObject>(6);
@@ -65,15 +68,18 @@ public class BorderPainter : MonoBehaviour
             var nz = NeighborXZ(cell.X, cell.Z, dir, grid);
             neighborXZs[dir] = nz;
 
-            if (TileRegistry.TryGetCell(nz.x, nz.y, out var nCell) && nCell && nCell.gameObject.activeSelf)
+            bool haveNeighbor = TileRegistry.TryGetCell(nz.x, nz.y, out var nCell) && nCell && nCell.gameObject.activeSelf;
+            Kingdom nK = haveNeighbor ? nCell.Owner : Kingdom.None;
+
+            // Owned neighbor: draw if different kingdom (same as before).
+            // Unowned/missing neighbor: draw if drawAgainstUnowned is enabled.
+            if (nK == Kingdom.None)
             {
-                edgeIsBoundary[dir] = drawOnlyIfNeighborOwned
-                    ? (nCell.Owner != Kingdom.None && nCell.Owner != myK)
-                    : (nCell.Owner != myK);
+                edgeIsBoundary[dir] = drawAgainstUnowned;
             }
             else
             {
-                edgeIsBoundary[dir] = false;
+                edgeIsBoundary[dir] = (nK != myK);
             }
         }
 
