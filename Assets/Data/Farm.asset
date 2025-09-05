@@ -19,10 +19,10 @@ MonoBehaviour:
     Influence: 0
     Population: 0
   Values:
-    Gold: 2
-    Wood: 1
-    Influence: 5
-    Population: 0
-  MaxPopulation: 0
-  InitialPopulation: 0
-  PopulationPerTurn: 0
+    Gold: 1
+    Wood: 0
+    Influence: 2
+    Population: 2
+  MaxPopulation: 20
+  InitialPopulation: 10
+  PopulationPerTurn: 2
