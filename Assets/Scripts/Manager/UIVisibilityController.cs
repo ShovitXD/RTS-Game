@@ -2,37 +2,22 @@ using UnityEngine;
 
 public class UIVisibilityController : MonoBehaviour
 {
-    [Header("References")]
-    [SerializeField] private GameManager gameManager; // drag GameManager or leave blank to auto-grab
-
-    [Header("UI Elements to Toggle")]
     public GameObject[] devUIElements;
+    private GameManager gm;
 
-    void Awake()
+    void OnEnable()
     {
-        if (!gameManager) gameManager = GameManager.Instance;
-    }
-
-    void Start()
-    {
+        gm = GameManager.Instance;
         ApplyVisibility();
     }
 
-    void Update()
-    {
-        // Refresh each frame in case DevMode can change at runtime
-        ApplyVisibility();
-    }
+    void Update() => ApplyVisibility();
 
-    private void ApplyVisibility()
+    void ApplyVisibility()
     {
-        if (devUIElements == null || gameManager == null) return;
-
-        bool on = gameManager.DevMode;
+        if (devUIElements == null || gm == null) return;
+        bool on = gm.DevMode;
         foreach (var ui in devUIElements)
-        {
-            if (ui != null && ui.activeSelf != on)
-                ui.SetActive(on);
-        }
+            if (ui && ui.activeSelf != on) ui.SetActive(on);
     }
 }

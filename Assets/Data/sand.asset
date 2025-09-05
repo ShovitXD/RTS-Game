@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   Prefab: {fileID: 5008402300978610339, guid: a9cb6c86d42489d49a2fccdb1c748ffa, type: 3}
   Cost:
-    Gold: 0
+    Gold: 5
     Wood: 0
     Influence: 0
     Population: 0

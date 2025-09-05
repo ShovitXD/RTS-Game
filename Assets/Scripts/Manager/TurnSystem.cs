@@ -2,46 +2,42 @@
 
 public class TurnSystem : MonoBehaviour
 {
-    [SerializeField] private GameManager gameManager; // assign in Inspector
+    private GameManager gameManager; // no serialized ref
 
-    // Hook this to your Next Turn button (OnClick)
+    void Awake() { gameManager = GameManager.Instance; }
+    void OnEnable() { if (!gameManager) gameManager = GameManager.Instance; }
+
+    // Hooked by the button (see WireNextTurn below)
     public void NextTurn()
     {
-        if (!gameManager) { Debug.LogError("TurnSystem: Assign GameManager in the Inspector."); return; }
+        if (!gameManager) { Debug.LogError("TurnSystem: no GameManager."); return; }
 
-        // Close out previous turn
         gameManager.EndTurn();
 
-        var income = new Resources[GameManager.KingdomCount]; // Gold/Wood/Influence totals
-        var popIncome = new int[GameManager.KingdomCount];    // Population deltas from growth
+        var income = new Resources[GameManager.KingdomCount];
+        var popDelta = new int[GameManager.KingdomCount];
 
         foreach (var cell in TileRegistry.AllCells)
         {
             if (!cell || cell.Owner == Kingdom.None || cell.Type == null) continue;
             int ki = (int)cell.Owner;
 
-            // 1) Static resource yields from the tile (no population here)
             var v = cell.Values; v.Population = 0;
             income[ki] += v;
 
-            // 2) Population growth (per-tile) → roll up to global per-kingdom population
             int added = cell.GrowPopulationOneTurn();
-            if (added > 0) popIncome[ki] += added;
+            if (added > 0) popDelta[ki] += added;
         }
 
-        // Apply resources + population growth to each kingdom wallet
         for (int i = 0; i < GameManager.KingdomCount; i++)
         {
             var k = (Kingdom)i;
-
             if (income[i].Gold != 0 || income[i].Wood != 0 || income[i].Influence != 0)
                 gameManager.AddTo(k, income[i]);
-
-            if (popIncome[i] > 0)
-                gameManager.AddTo(k, new Resources { Population = popIncome[i] });
+            if (popDelta[i] > 0)
+                gameManager.AddTo(k, new Resources { Population = popDelta[i] });
         }
 
-        // Begin new turn
         gameManager.BeginTurn();
     }
 }

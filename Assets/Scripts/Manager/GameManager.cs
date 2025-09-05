@@ -38,6 +38,9 @@ public sealed class GameManager : MonoBehaviour
 
         if (expandingAI == Kingdom.Player) expandingAI = Kingdom.Enemy;
         ClampWalletArray();
+
+        wallets[(int)Kingdom.Player].Influence = 5;
+
     }
 
     void ClampWalletArray()

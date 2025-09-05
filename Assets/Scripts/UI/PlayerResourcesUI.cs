@@ -3,52 +3,37 @@ using UnityEngine;
 
 public class PlayerResourcesUI : MonoBehaviour
 {
-    [Header("References")]
-    [SerializeField] private GameManager gameManager; // optional; auto-grabs if left empty
     [SerializeField] private TMP_Text goldText;
     [SerializeField] private TMP_Text woodText;
     [SerializeField] private TMP_Text influenceText;
 
-    void Awake()
-    {
-        if (!gameManager) gameManager = GameManager.Instance;
+    private GameManager gm;
 
-        if (gameManager != null)
-        {
-            gameManager.OnPlayerGoldChanged.AddListener(UpdateGold);
-            gameManager.OnPlayerWoodChanged.AddListener(UpdateWood);
-            gameManager.OnPlayerInfluenceChanged.AddListener(UpdateInfluence);
-        }
-    }
-
-    void OnDestroy()
+    void OnEnable()
     {
-        if (gameManager != null)
-        {
-            gameManager.OnPlayerGoldChanged.RemoveListener(UpdateGold);
-            gameManager.OnPlayerWoodChanged.RemoveListener(UpdateWood);
-            gameManager.OnPlayerInfluenceChanged.RemoveListener(UpdateInfluence);
-        }
-    }
+        gm = GameManager.Instance;
+        if (!gm) return;
 
-    void Start()
-    {
+        gm.OnPlayerGoldChanged.AddListener(UpdateGold);
+        gm.OnPlayerWoodChanged.AddListener(UpdateWood);
+        gm.OnPlayerInfluenceChanged.AddListener(UpdateInfluence);
+
         // Force initial sync
-        if (gameManager != null)
-        {
-            var wallet = gameManager.GetWallet(Kingdom.Player);
-            UpdateGold(wallet.Gold);
-            UpdateWood(wallet.Wood);
-            UpdateInfluence(wallet.Influence);
-        }
+        var w = gm.GetWallet(Kingdom.Player);
+        UpdateGold(w.Gold);
+        UpdateWood(w.Wood);
+        UpdateInfluence(w.Influence);
     }
 
-    void UpdateGold(int value) => SetText(goldText, $"+{value}");
-    void UpdateWood(int value) => SetText(woodText, $"+{value}");
-    void UpdateInfluence(int value) => SetText(influenceText, $"+{value}");
-
-    void SetText(TMP_Text txt, string msg)
+    void OnDisable()
     {
-        if (txt) txt.text = msg;
+        if (!gm) return;
+        gm.OnPlayerGoldChanged.RemoveListener(UpdateGold);
+        gm.OnPlayerWoodChanged.RemoveListener(UpdateWood);
+        gm.OnPlayerInfluenceChanged.RemoveListener(UpdateInfluence);
     }
+
+    void UpdateGold(int v) { if (goldText) goldText.text = $"+{v}"; }
+    void UpdateWood(int v) { if (woodText) woodText.text = $"+{v}"; }
+    void UpdateInfluence(int v) { if (influenceText) influenceText.text = $"+{v}"; }
 }
