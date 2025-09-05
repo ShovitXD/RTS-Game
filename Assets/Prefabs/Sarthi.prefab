@@ -106,7 +106,6 @@ MonoBehaviour:
   turnSpeedDegPerSec: 720
   cameraRelative: 1
   runKey: 304
-  playAnimKey: 119
   movingBool: IsMoving
   runningBool: IsRunning
   speedFloat: Speed
@@ -129,7 +128,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   listeningTarget: {fileID: 4594428010378157759, guid: 7dd66e2ee1d96924c921243cce4632ef, type: 3}
   listeningRange: 5
-  fillDuration: 3
+  fillDuration: 5
   progress: 0
   hasSpied: 0
 --- !u!1001 &2867116312142169026
