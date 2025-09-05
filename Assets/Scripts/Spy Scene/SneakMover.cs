@@ -8,31 +8,42 @@ public class SneakMover : MonoBehaviour
     [SerializeField] private Animator animator;
     private Rigidbody rb;
 
-    [Header("Movement")]
-    [SerializeField, Min(0f)] private float sneakSpeed = 2.0f;   // speed in SneakWalk
-    [SerializeField, Min(0f)] private float runSpeed = 3.5f;   // speed in Run
-    [SerializeField] private bool cameraRelative = true;         // WASD relative to camera
+    [Header("Movement Speeds")]
+    [SerializeField, Min(0f)] private float walkSpeed = 2.5f;
+    [SerializeField, Min(0f)] private float runSpeed = 5.0f;
 
-    [Header("Run Input")]
-    [SerializeField] private KeyCode runKey = KeyCode.LeftShift;
+    [Header("Acceleration")]
+    [Tooltip("How fast you speed up towards target speed (units/sec^2).")]
+    [SerializeField, Min(0f)] private float acceleration = 20f;
+    [Tooltip("How fast you slow down towards zero (units/sec^2).")]
+    [SerializeField, Min(0f)] private float deceleration = 24f;
 
     [Header("Rotation")]
-    [SerializeField, Min(0f)] private float turnSpeed = 720f;    // deg/sec to face move dir
+    [SerializeField, Min(0f)] private float turnSpeedDegPerSec = 720f;
 
-    [Header("Animator Params")]
-    [SerializeField] private string movingBool = "IsMoving";    // true while moving
-    [SerializeField] private string runningBool = "IsRunning";   // true while moving + Shift
+    [Header("Input")]
+    [SerializeField] private bool cameraRelative = true;
+    [SerializeField] private KeyCode runKey = KeyCode.LeftShift;
 
-    [Header("Physics Tweaks")]
-    [SerializeField] private bool useGravity = false;            // off for top-down scenes
-    [SerializeField, Min(0f)] private float stopDeadZone = 0.01f;
+    [Header("Animator Params (optional)")]
+    [SerializeField] private string movingBool = "IsMoving";
+    [SerializeField] private string runningBool = "IsRunning";
+    [SerializeField] private string speedFloat = "Speed"; // normalized 0..1 (walk..run)
+
+    [Header("Physics")]
+    [SerializeField] private bool useGravity = false;
+    [SerializeField, Min(0f)] private float stopDeadZone = 0.05f;
+
+    // runtime
+    private Vector3 currentVelocity; // XZ-plane velocity we control
+    private Camera mainCam;
 
     void Reset()
     {
         rb = GetComponent<Rigidbody>();
         rb.isKinematic = false;
         rb.useGravity = useGravity;
-        rb.linearDamping = 0f; // no artificial drag, we control stopping ourselves
+        rb.linearDamping = 0f;
         rb.angularDamping = 0f;
         rb.interpolation = RigidbodyInterpolation.Interpolate;
         rb.constraints = RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationZ;
@@ -48,59 +59,73 @@ public class SneakMover : MonoBehaviour
         rb.isKinematic = false;
         rb.useGravity = useGravity;
         rb.constraints = RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationZ;
+        mainCam = Camera.main;
     }
 
     void FixedUpdate()
     {
-        HandleMovement();
-    }
-
-    void HandleMovement()
-    {
-        // Input
+        // --- Input (WASD) ---
         float h = Input.GetAxisRaw("Horizontal");
         float v = Input.GetAxisRaw("Vertical");
-        bool runHeld = Input.GetKey(runKey);
+        bool sprint = Input.GetKey(runKey);
 
         Vector3 input = new Vector3(h, 0f, v);
         if (input.sqrMagnitude > 1f) input.Normalize();
 
-        if (cameraRelative && Camera.main)
+        // --- Camera-relative movement ---
+        Vector3 moveDir = input;
+        if (cameraRelative)
         {
-            Vector3 f = Camera.main.transform.forward; f.y = 0f; f.Normalize();
-            Vector3 r = Camera.main.transform.right; r.y = 0f; r.Normalize();
-            input = f * v + r * h;
-            if (input.sqrMagnitude > 1f) input.Normalize();
+            if (!mainCam) mainCam = Camera.main;
+            if (mainCam)
+            {
+                Vector3 f = mainCam.transform.forward; f.y = 0f; f.Normalize();
+                Vector3 r = mainCam.transform.right; r.y = 0f; r.Normalize();
+                moveDir = f * v + r * h;
+                if (moveDir.sqrMagnitude > 1f) moveDir.Normalize();
+            }
         }
 
-        bool isMoving = input.sqrMagnitude > 0.0001f;
-        float moveSpeed = (isMoving && runHeld) ? runSpeed : sneakSpeed;
+        // --- Target speed ---
+        float targetSpeed = sprint ? runSpeed : walkSpeed;
+        Vector3 targetVel = moveDir * targetSpeed;
 
-        // Calculate velocity directly — no acceleration smoothing
-        Vector3 velocity = isMoving ? input * moveSpeed : Vector3.zero;
+        // --- Accel / Decel toward target velocity (XZ plane) ---
+        Vector3 planarCurrent = new Vector3(currentVelocity.x, 0f, currentVelocity.z);
+        Vector3 planarTarget = new Vector3(targetVel.x, 0f, targetVel.z);
 
-        // Move instantly
-        rb.MovePosition(rb.position + velocity * Time.fixedDeltaTime);
+        // choose rate based on whether we are pressing input
+        float rate = (planarTarget.sqrMagnitude > 0.0001f) ? acceleration : deceleration;
+        Vector3 newPlanar = Vector3.MoveTowards(planarCurrent, planarTarget, rate * Time.fixedDeltaTime);
+        currentVelocity = new Vector3(newPlanar.x, 0f, newPlanar.z); // keep on XZ
 
-        // Face movement direction
-        if (isMoving)
+        // dead zone snap
+        if (currentVelocity.magnitude < stopDeadZone) currentVelocity = Vector3.zero;
+
+        // --- Move ---
+        Vector3 delta = currentVelocity * Time.fixedDeltaTime;
+        rb.MovePosition(rb.position + delta);
+
+        // --- Rotate to face move direction ---
+        if (currentVelocity.sqrMagnitude > 0.0001f)
         {
-            Quaternion look = Quaternion.LookRotation(input, Vector3.up);
-            rb.MoveRotation(Quaternion.RotateTowards(rb.rotation, look, turnSpeed * Time.fixedDeltaTime));
+            Quaternion look = Quaternion.LookRotation(currentVelocity.normalized, Vector3.up);
+            Quaternion next = Quaternion.RotateTowards(rb.rotation, look, turnSpeedDegPerSec * Time.fixedDeltaTime);
+            rb.MoveRotation(next);
         }
 
-        // Stop drift when idle
-        if (!isMoving)
-        {
-            rb.linearVelocity = Vector3.zero;
-            rb.angularVelocity = Vector3.zero;
-        }
+        // --- Kill drift in physics state (since we use MovePosition/Rotation) ---
+        rb.linearVelocity = Vector3.zero;
+        rb.angularVelocity = Vector3.zero;
 
-        // Animator sync
+        // --- Animator sync ---
+        bool isMoving = currentVelocity.sqrMagnitude > 0.0001f;
         if (!string.IsNullOrEmpty(movingBool)) animator?.SetBool(movingBool, isMoving);
-        if (!string.IsNullOrEmpty(runningBool)) animator?.SetBool(runningBool, isMoving && runHeld);
-
-        // Pause playback when idle
-        if (animator) animator.speed = isMoving ? 1f : 0f;
+        if (!string.IsNullOrEmpty(runningBool)) animator?.SetBool(runningBool, isMoving && sprint);
+        if (!string.IsNullOrEmpty(speedFloat))
+        {
+            float norm = Mathf.InverseLerp(0f, runSpeed, currentVelocity.magnitude);
+            animator?.SetFloat(speedFloat, norm, 0.1f, Time.fixedDeltaTime); // damp for smooth blend trees
+        }
     }
 }

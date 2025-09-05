@@ -2761,13 +2761,16 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   animator: {fileID: 6047400405160803823}
-  sneakSpeed: 2
+  walkSpeed: 2.5
   runSpeed: 4
+  acceleration: 20
+  deceleration: 24
+  turnSpeedDegPerSec: 720
   cameraRelative: 1
   runKey: 304
-  turnSpeed: 720
   movingBool: IsMoving
   runningBool: IsRunning
+  speedFloat: Speed
   useGravity: 0
   stopDeadZone: 0.01
 --- !u!114 &6451741261218034453
@@ -2782,7 +2785,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 54c2aea46893ecf40a227ed70d7c5f59, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  listeningTarget: {fileID: 0}
+  listeningTarget: {fileID: 4594428010378157759, guid: 7dd66e2ee1d96924c921243cce4632ef, type: 3}
   listeningRange: 5
   fillDuration: 3
   progress: 0
