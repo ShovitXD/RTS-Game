@@ -959,7 +959,7 @@ NavMeshAgent:
   m_Acceleration: 8
   avoidancePriority: 50
   m_AngularSpeed: 120
-  m_StoppingDistance: 0
+  m_StoppingDistance: 1.5
   m_AutoTraverseOffMeshLink: 1
   m_AutoBraking: 1
   m_AutoRepath: 1
@@ -979,19 +979,20 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 99bd005e57d025b46985e86d155ab146, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  agent: {fileID: 5407729178051218454}
+  player: {fileID: 0}
   animator: {fileID: 3791759685167055130}
   runBoolParam: isRunnign
   runSpeed: 4
+  stoppingDistance: 1.5
   viewRadius: 15
   viewAngle: 90
-  playerLayer:
-    serializedVersion: 2
-    m_Bits: 0
   obstacleLayer:
     serializedVersion: 2
     m_Bits: 0
-  nearDistance: 2
+  eyeHeight: 1.6
+  alwaysChase: 1
+  logDebug: 1
+  drawGizmos: 1
 --- !u!1 &3198725977586470796
 GameObject:
   m_ObjectHideFlags: 0
