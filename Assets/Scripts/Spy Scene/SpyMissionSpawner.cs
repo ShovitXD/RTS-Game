@@ -38,7 +38,11 @@ public class SpyMissionSpawner : MonoBehaviour
         if (!listening) Debug.LogWarning("SpyMissionSpawner: Player prefab has no Listening component.");
 
         // Bind UI progress bar
+#if UNITY_2023_1_OR_NEWER
+        if (!progressBar) progressBar = Object.FindFirstObjectByType<SpyingProgressBar>(FindObjectsInactive.Include);
+#else
         if (!progressBar) progressBar = FindObjectOfType<SpyingProgressBar>(true);
+#endif
         if (progressBar) progressBar.SetListening(listening);
 
         // Scene 2 camera follow ONLY (no cursor logic)

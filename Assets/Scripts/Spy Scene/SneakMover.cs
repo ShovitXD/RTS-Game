@@ -13,9 +13,7 @@ public class SneakMover : MonoBehaviour
     [SerializeField, Min(0f)] private float runSpeed = 5.0f;
 
     [Header("Acceleration")]
-    [Tooltip("How fast you speed up towards target speed (units/sec^2).")]
     [SerializeField, Min(0f)] private float acceleration = 20f;
-    [Tooltip("How fast you slow down towards zero (units/sec^2).")]
     [SerializeField, Min(0f)] private float deceleration = 24f;
 
     [Header("Rotation")]
@@ -23,28 +21,43 @@ public class SneakMover : MonoBehaviour
 
     [Header("Input")]
     [SerializeField] private bool cameraRelative = true;
-    [SerializeField] private KeyCode runKey = KeyCode.LeftShift;
+    [SerializeField] private KeyCode runKey = KeyCode.LeftShift; // Shift toggles IsRunning
 
     [Header("Animator Params (optional)")]
     [SerializeField] private string movingBool = "IsMoving";
     [SerializeField] private string runningBool = "IsRunning";
-    [SerializeField] private string speedFloat = "Speed"; // normalized 0..1 (walk..run)
+    [SerializeField] private string speedFloat = "Speed";      // normalized 0..1
+
+    [Header("Animator State (optional)")]
+    [SerializeField] private string crouchWalkStateName = "";  // e.g., "CrouchWalk"
+    [SerializeField] private int crouchLayerIndex = 0;
+    [SerializeField] private bool ensureCrouchStateOnStart = true;
 
     [Header("Physics")]
     [SerializeField] private bool useGravity = false;
     [SerializeField, Min(0f)] private float stopDeadZone = 0.05f;
 
     // runtime
-    private Vector3 currentVelocity; // XZ-plane velocity we control
+    private Vector3 currentVelocity;
     private Camera mainCam;
+    private int crouchHash = -1;
+
+    // animator param caching
+    private int movingHash, runningHash, speedHash;
+    private bool hasMoving, hasRunning, hasSpeed;
 
     void Reset()
     {
         rb = GetComponent<Rigidbody>();
         rb.isKinematic = false;
         rb.useGravity = useGravity;
+#if UNITY_6000_0_OR_NEWER
         rb.linearDamping = 0f;
         rb.angularDamping = 0f;
+#else
+        rb.drag = 0f;
+        rb.angularDrag = 0.05f;
+#endif
         rb.interpolation = RigidbodyInterpolation.Interpolate;
         rb.constraints = RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationZ;
 
@@ -60,6 +73,23 @@ public class SneakMover : MonoBehaviour
         rb.useGravity = useGravity;
         rb.constraints = RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationZ;
         mainCam = Camera.main;
+
+        if (!string.IsNullOrEmpty(crouchWalkStateName))
+            crouchHash = Animator.StringToHash(crouchWalkStateName);
+
+        CacheAnimatorParams();
+    }
+
+    void Start()
+    {
+        if (animator && ensureCrouchStateOnStart && crouchHash != -1)
+        {
+            animator.Play(crouchHash, crouchLayerIndex, 0f);
+            animator.Update(0f);
+        }
+
+        // Start paused; will unpause when movement input > 0
+        if (animator) animator.speed = 0f;
     }
 
     void FixedUpdate()
@@ -67,10 +97,11 @@ public class SneakMover : MonoBehaviour
         // --- Input (WASD) ---
         float h = Input.GetAxisRaw("Horizontal");
         float v = Input.GetAxisRaw("Vertical");
-        bool sprint = Input.GetKey(runKey);
-
         Vector3 input = new Vector3(h, 0f, v);
         if (input.sqrMagnitude > 1f) input.Normalize();
+
+        bool hasInput = input.sqrMagnitude > 0.0001f;
+        bool sprintKey = Input.GetKey(runKey);
 
         // --- Camera-relative movement ---
         Vector3 moveDir = input;
@@ -87,19 +118,17 @@ public class SneakMover : MonoBehaviour
         }
 
         // --- Target speed ---
-        float targetSpeed = sprint ? runSpeed : walkSpeed;
-        Vector3 targetVel = moveDir * targetSpeed;
+        float targetSpeed = (sprintKey && hasInput) ? runSpeed : walkSpeed;
+        Vector3 targetVel = moveDir * (hasInput ? targetSpeed : 0f);
 
-        // --- Accel / Decel toward target velocity (XZ plane) ---
+        // --- Accel / Decel (XZ) ---
         Vector3 planarCurrent = new Vector3(currentVelocity.x, 0f, currentVelocity.z);
         Vector3 planarTarget = new Vector3(targetVel.x, 0f, targetVel.z);
 
-        // choose rate based on whether we are pressing input
         float rate = (planarTarget.sqrMagnitude > 0.0001f) ? acceleration : deceleration;
         Vector3 newPlanar = Vector3.MoveTowards(planarCurrent, planarTarget, rate * Time.fixedDeltaTime);
-        currentVelocity = new Vector3(newPlanar.x, 0f, newPlanar.z); // keep on XZ
+        currentVelocity = new Vector3(newPlanar.x, 0f, newPlanar.z);
 
-        // dead zone snap
         if (currentVelocity.magnitude < stopDeadZone) currentVelocity = Vector3.zero;
 
         // --- Move ---
@@ -114,18 +143,61 @@ public class SneakMover : MonoBehaviour
             rb.MoveRotation(next);
         }
 
-        // --- Kill drift in physics state (since we use MovePosition/Rotation) ---
+        // --- Kill drift ---
+#if UNITY_6000_0_OR_NEWER
         rb.linearVelocity = Vector3.zero;
+#else
+        rb.velocity = new Vector3(0f, rb.velocity.y, 0f);
+#endif
         rb.angularVelocity = Vector3.zero;
 
-        // --- Animator sync ---
-        bool isMoving = currentVelocity.sqrMagnitude > 0.0001f;
-        if (!string.IsNullOrEmpty(movingBool)) animator?.SetBool(movingBool, isMoving);
-        if (!string.IsNullOrEmpty(runningBool)) animator?.SetBool(runningBool, isMoving && sprint);
-        if (!string.IsNullOrEmpty(speedFloat))
+        // --- Animator control (plays on ANY movement key) ---
+        if (animator)
         {
-            float norm = Mathf.InverseLerp(0f, runSpeed, currentVelocity.magnitude);
-            animator?.SetFloat(speedFloat, norm, 0.1f, Time.fixedDeltaTime); // damp for smooth blend trees
+            // Play animation when moving (W/A/S/D), pause when idle
+            animator.speed = hasInput ? 1f : 0f;
+
+            if (hasMoving) animator.SetBool(movingHash, hasInput);
+            if (hasRunning) animator.SetBool(runningHash, hasInput && sprintKey);
+
+            if (hasSpeed)
+            {
+                float norm = Mathf.InverseLerp(0f, runSpeed, currentVelocity.magnitude);
+                animator.SetFloat(speedHash, norm, 0.1f, Time.fixedDeltaTime);
+            }
         }
     }
+
+    // --- Animator param caching ---
+    void CacheAnimatorParams()
+    {
+        hasMoving = hasRunning = hasSpeed = false;
+        if (!animator) return;
+
+        movingHash = !string.IsNullOrEmpty(movingBool) ? Animator.StringToHash(movingBool) : 0;
+        runningHash = !string.IsNullOrEmpty(runningBool) ? Animator.StringToHash(runningBool) : 0;
+        speedHash = !string.IsNullOrEmpty(speedFloat) ? Animator.StringToHash(speedFloat) : 0;
+
+        foreach (var p in animator.parameters)
+        {
+            if (p.nameHash == movingHash && p.type == AnimatorControllerParameterType.Bool) hasMoving = true;
+            if (p.nameHash == runningHash && p.type == AnimatorControllerParameterType.Bool) hasRunning = true;
+            if (p.nameHash == speedHash && p.type == AnimatorControllerParameterType.Float) hasSpeed = true;
+        }
+
+        if (!hasMoving && !string.IsNullOrEmpty(movingBool))
+            Debug.LogWarning($"{name}: Animator bool '{movingBool}' not found.");
+        if (!hasRunning && !string.IsNullOrEmpty(runningBool))
+            Debug.LogWarning($"{name}: Animator bool '{runningBool}' not found.");
+        if (!hasSpeed && !string.IsNullOrEmpty(speedFloat))
+            Debug.LogWarning($"{name}: Animator float '{speedFloat}' not found.");
+    }
+
+#if UNITY_EDITOR
+    void OnValidate()
+    {
+        if (!animator) animator = GetComponentInChildren<Animator>();
+        CacheAnimatorParams();
+    }
+#endif
 }
